@@ -1,0 +1,536 @@
+---
+title: "Curva de Laffer - Argentina"
+output: 
+  flexdashboard::flex_dashboard:
+    theme: cosmo
+
+
+---
+
+
+<style>                     
+.navbar {
+  background-color:black;
+  border-color:white;
+}
+.navbar-brand {
+color:white!important;
+}
+</style>   
+
+<style type="text/css">
+
+.chart-title {  /* chart_title  */
+   font-size: 15px
+
+</style>
+
+
+```{r setup, include=FALSE}
+
+```
+
+
+
+```{r}
+
+
+library(flexdashboard)
+library(tidyr)
+library(ggplot2)
+library(readr)  
+library(dplyr)  
+library(plotly)
+library(readxl)
+library(rvest)
+library(rsconnect)
+library(shiny)
+library(DT)
+library(tidyverse)
+library(tidytext)
+library(wordcloud2)
+library(ggplot2)
+library(ggthemes)
+library(viridisLite)
+library(dplyr)
+library(plotly)
+library(quantmod)
+library(highcharter)
+library(tidyverse)
+library(ggplot2)
+library(corrplot) 
+library(GGally)
+library(readr)  
+library(dplyr)  
+library(crayon) 
+library(modeest)
+library(readxl)
+library(ggthemes)
+library(reshape)
+library(gganimate)
+
+
+dfa = read_excel('argentina.xlsx')
+
+
+
+
+```
+
+
+
+Introducción 
+=====================================
+
+**_Una aproximación a la teoría de Laffer para los últimos 60 años en Argentina._**
+
+Column {data-width=15%} 
+-----------------------------------------------------------
+
+### **Descripción: **
+
+*Se estimo un polinomio de tercer grado que mejor ajusto a los datos, se puede visualizar que se alcanza un mínimo y un máximo durante la serie. Cuando el gasto publico total llega casi el 40% del PIB comenzamos a ver un descenso de la recaudación en términos reales*
+
+
+
+$$Y = β_0 + X_1β_1 + X_2^2β_2 + X_3^3β_3  $$
+
+
+
+*Donde: *
+
+
+$$β_0 = 4134$$
+
+$$β_1 = - 500.2 $$
+
+$$ β_2 = 20.48$$
+
+$$ β_3 = - -0.2459$$
+
+
+*Podemos ver que el % de gasto publico sobre el producto bruto nacional se ha incrementado al pasar los años. Para el caso analizado, en vez de tomar la recaudación sobre el producto para el eje X, se toma el gasto publico total ya que, necesariamente, el gasto publico termina siendo financiado por impuestos presentes o futuros, es decir, impuesto directo e indirecto, inflacionario o deuda*
+
+
+Column {data-width=85%}
+-----------------------------------------------------------------------
+
+### ***Series Temporales:*** 
+
+
+
+```{r, warning=FALSE}
+
+
+plot_ly(dfa) %>%
+  add_trace(x = ~año, y = ~gastopbi, 
+            type = 'scatter', mode = 'lines',  
+            name = "% Gasto/PBI", 
+            marker = list(color = '#2e354a', width = 1.5),
+            line = list(color = '#1149f2', width = 1.5)) %>%  
+  add_trace(x = ~año, y = ~recaudacion,
+            type = 'scatter', mode = 'lines', 
+            yaxis = "y2", 
+            name = 'Recaudacion',
+            marker = list(color = '#f21111', width = 1.5),
+            line = list(color = '#f21111', width = 1.5)) %>% 
+  layout(title = 'Relacion Gasto/PBI y Recaudacion. Base = Dic 2015.',
+         yaxis2 = list(overlaying = "y", side = "right", title = 'Recaudacion', showgrid = FALSE ,zeroline = FALSE),
+         yaxis = list(side = 'left', title = 'Gasto/PBI',showgrid = FALSE, zeroline = FALSE),
+         xaxis = list( title = 'Año'),
+        legend = list(x = 1.05),
+        hovermode = "compare") %>% 
+  add_annotations(
+    x = 1989,
+    y = 23,
+    text = paste("Hiperinflacion\n1989"),
+    xref = "x",
+    yref = "y",
+    arrowhead = 5,
+    arrowhead = 3,
+    arrowsize = 1,
+    showarrow = TRUE,
+    ax = -10,
+    ay = -60) %>% 
+  add_annotations(
+    x = 2002,
+    y = 21,
+    text = paste("Devaluacion\n2001/2002"),
+    xref = "x",
+    yref = "y",
+    arrowhead = 5,
+    arrowhead = 3,
+    arrowsize = 1,
+    showarrow = TRUE,
+    ax = 20,
+    ay = 60) %>% 
+  add_annotations(
+    x = 1975,
+    y = 20,
+    text = paste("Rodrigazo 1975"),
+    xref = "x",
+    yref = "y",
+    arrowhead = 5,
+    arrowhead = 3,
+    arrowsize = 1,
+    showarrow = TRUE,
+    ax = -10,
+    ay = -60) %>% 
+  add_annotations(
+    xref="paper",
+    yref="paper",
+    x=1.15,
+    y=-0.10,
+    text="Elaboracion propia en base a datos de Orlando Ferreres",
+    showarrow= F
+  )
+  
+
+
+
+```
+
+
+
+### ***Scater Plot y Estimación:*** 
+
+
+```{r, warning=FALSE}
+
+
+# Modelo estimado en python
+
+
+dfa = read_excel('argentina.xlsx')
+
+dfa$estimado = -0.2459 * dfa$gastopbi^3 + 20.48* dfa$gastopbi^2 - 500.2  * dfa$gastopbi + 4134
+
+plot_ly(dfa) %>%
+  add_trace(x = ~gastopbi, y = ~recaudacion_en_mill, color = ~año, colors = 'Blues',
+            type = 'scatter', 
+            name = "% Gasto/PBI", 
+             hoverinfo = 'text',
+             text = ~paste('Año:', año, '<br>Recaudacion:', round(recaudacion_en_mill,2), '<br>Gasto/PBI:', gastopbi),
+            marker = list(width = 4, size = 7.5, alpha = 0.6, 
+                          line = list(color = 'grey',width = 1))) %>%
+  add_lines(x = ~gastopbi, y = ~estimado,
+            line = list(shape = "spline", color = 'blue'), 
+
+            name = 'Estimado') %>% 
+  layout(title = '<b>Relacion Gasto/PBI y Recaudacion. Base = Dic 2015.</b>',
+         yaxis = list(side = 'left', title = 'Recaudacion Base Dic 2015',showgrid = FALSE, zeroline = FALSE),
+         xaxis = list( title = 'Gasto/PBI'),
+        legend = list(x = 1.05),
+        hovermode = "compare") %>% 
+  add_annotations(
+    xref="paper",
+    yref="paper",
+    x=1.13,
+    y=0.09,
+    text="Elaboracion propia\nen base a datos de:\nOrlando Ferreres",
+    showarrow= F
+  )
+
+
+
+
+
+```
+
+Gráficos Estáticos
+=====================================
+
+**_Una aproximación a la teoría de Laffer para los últimos 60 años en Argentina._**
+
+Column {data-width=20%} 
+-----------------------------------------------------------
+
+### **Descripción: **
+
+*_Variables Macroeconomicas que se utilizaron para el trabajo_*
+
+<b> Administración Central </b>
+
+_Agentes Recaudadores: _
+
+<ul>
+<li>Tesoro Nacional</li>
+<li>Rec. Afect.</li>
+<li>Org. Desc.</li>
+<li>Inst de Seg Social.</li>
+<li>Ex Cjas Provinciales.</li>
+
+</ul>
+
+_Ingresos Corrientes: _
+
+<ul>
+<li>Ingresos tributarios</li>
+<li>Aportes y contrib. a la seg. social </li>
+<li>Ingresos no tributarios</li>
+<li>Ventas de bs.y serv.de las adm.pub</li>
+<li>Ingresos de operación.</li>
+<li>Rentas de la propiedad netas</li>
+<li>Transferencias corrientes</li>
+<li>Otros ingresos</li>
+<li>Superávit operativo empresas pub</li>
+
+</ul>
+
+_Gastos Corrientes: _
+
+<ul>
+<li>Gastos de consumo y operacion</li>
+<li> Intereses y otras rentas de la prop</li>
+<li>Prestaciones de la seguridad social</li>
+<li>Otros gastos corrientes</li>
+<li>Transferencias corrientes</li>
+<li>Rentas de la propiedad netas</li>
+<li>Otros gastos</li>
+<li>Déficit operativo empresas pub.</li>
+
+</ul>
+
+
+
+Column {data-width=40%}
+-----------------------------------------------------------------------
+
+### ***Resultado Económico Anual Argentina 1961 - 2020*** {data-height=50%}
+
+
+
+```{r}
+res_econ = plot_ly() %>% 
+  add_trace(dfa, x = ~factor(dfa$año), y = ~dfa$resultado_economico, color = ~dfa$resultado, type = 'bar', name = ifelse(dfa$resultado == 'Deficit', "Deficit", "Superavit"),alpha = 0.7)
+   
+
+res_econ %>%  layout(title = "<b>Resultado Economico Anual Argentina 1961 - 2020</b>",
+         xaxis = list(title = "Año", tickangle = -45, autotick = F, dtick = 2, zerolinecolor = '#ffff', 
+           zerolinewidth = 2, 
+           gridcolor = 'ffff'),
+         yaxis = list(title = "Resultado Economico"), zerolinecolor = '#ffff', 
+           zerolinewidth = 2, 
+           gridcolor = 'ffff')
+
+
+```
+
+
+
+
+### ***Inflación Anual Argentina 1961 - 2020 con tasas menores al 200%*** {data-height=50%}
+
+
+
+```{r}
+
+
+dfa_inf = dfa %>% filter(dfa$inflacion < 200)
+
+inf_anual = plot_ly() %>% 
+  add_trace(dfa_inf, x = ~factor(dfa_inf$año), y = ~dfa_inf$inflacion, color = ~dfa_inf$resultado, type = 'bar', name = ifelse(dfa_inf$resultado == 'Deficit', "Deficit", "Superavit"), alpha = 0.7)
+   
+
+inf_anual %>%  layout(title = "<b>Inflación Anual Argentina 1961 - 2020 con tasas menores al 200%</b>",
+         xaxis = list(title = "Año", tickangle = -45, autotick = F, dtick = 2, zerolinecolor = '#ffff', 
+           zerolinewidth = 2, 
+           gridcolor = 'ffff'),
+         yaxis = list(title = "% Inflacion"), zerolinecolor = '#ffff', 
+           zerolinewidth = 2, 
+           gridcolor = 'ffff')
+
+
+
+
+```
+
+
+
+
+Column {data-width=40%}
+-----------------------------------------------------------------------
+
+### ***Inflación Anual Argentina 1961 - 2020***  {data-height=55%}
+
+
+```{r}
+
+
+inf_anual = plot_ly() %>% 
+  add_trace(dfa, x = ~factor(dfa$año), y = ~dfa$inflacion, color = ~dfa$resultado, type = 'bar', name = ifelse(dfa$resultado == 'Deficit', "Deficit", "Superavit"), alpha = 0.7)
+   
+
+inf_anual %>%  layout(title = "<b>Inflación Anual Argentina 1961 - 2020 con tasas menores al 200%</b>",
+         xaxis = list(title = "Año", tickangle = -45, autotick = F, dtick = 2, zerolinecolor = '#ffff', 
+           zerolinewidth = 2, 
+           gridcolor = 'ffff'),
+         yaxis = list(title = "% Inflacion"), zerolinecolor = '#ffff', 
+           zerolinewidth = 2, 
+           gridcolor = 'ffff')
+
+
+
+```
+
+
+
+
+
+### ***Gasto Primario e Ingreso Primario Base 2015***  {data-height=45%}
+
+
+
+```{r}
+
+
+
+
+plot_ly(dfa) %>%
+  add_trace(x = ~año, y = ~gastos, 
+            type = 'scatter', mode = 'lines+markers',  
+            name = "Gasto", 
+            marker = list(color = '#b01e1e', width = 2),
+            line = list(color = '#f21111', width = 2)) %>%  
+  add_trace(x = ~año, y = ~recaudacion,
+            type = 'scatter', mode = 'lines+markers', 
+            name = 'Recaudacion',
+            marker = list(color = '#10572a', width = 2),
+            line = list(color = '#109c43', width = 2)) %>% 
+  layout(title = '<b>Relacion Gasto y Recaudacion.</b>',
+         yaxis = list(side = 'left', title = 'Gasto y Recaudacion',showgrid = FALSE, zeroline = FALSE),
+         xaxis = list( title = 'Año'),
+        legend = list(x = 1.05),
+        hovermode = "compare") %>% 
+  add_annotations(
+    x = 1989,
+    y = 450000000,
+    text = paste("Hiperinflacion\n1989"),
+    xref = "x",
+    yref = "y",
+    arrowhead = 5,
+    arrowhead = 3,
+    arrowsize = 1,
+    showarrow = TRUE,
+    ax = -10,
+    ay = -60) %>% 
+  add_annotations(
+    x = 2002,
+    y = 370000000,
+    text = paste("Devaluacion\n2001/2002"),
+    xref = "x",
+    yref = "y",
+    arrowhead = 5,
+    arrowhead = 3,
+    arrowsize = 1,
+    showarrow = TRUE,
+    ax = 20,
+    ay = 60) %>% 
+  add_annotations(
+    x = 1975,
+    y = 445000000,
+    text = paste("Rodrigazo 1975"),
+    xref = "x",
+    yref = "y",
+    arrowhead = 5,
+    arrowhead = 3,
+    arrowsize = 1,
+    showarrow = TRUE,
+    ax = -10,
+    ay = -60) %>% 
+  add_annotations(
+    xref="paper",
+    yref="paper",
+    x=1.15,
+    y=-0.10,
+    text="Elaboracion propia en base a datos de Orlando Ferreres",
+    showarrow= F
+  )
+  
+
+
+
+
+```
+
+
+
+
+
+
+
+Gráfico Dinámico
+=====================================
+
+
+**_Una aproximación a la teoría de Laffer para los últimos 60 años en Argentina._**
+
+
+Column {data-width=100%}
+-----------------------------------------------------------------------
+
+### ***Dinámica de la presión tributaria y la recaudación real*** 
+
+
+
+```{r}
+
+library(gganimate)
+
+colors <- c("Estimado" = "blue", "Real" = "#208ba1")
+
+dl = dfa %>% 
+  ggplot() + 
+    geom_line(aes(x = round(gastopbi,2), y = estimado, color = "Estimado"), alpha = 0.7, size = 1.5) + 
+    geom_point(aes(x = round(gastopbi,2), y = recaudacion_en_mill, color = "Real"), alpha = 0.7, size = 4) +
+    labs(title = 'Presion Tributaria % PIB: {frame_along}', x = 'Gasto / PBI', y = 'Recaudacion en Millones', subtitle = "Dinamica Prestion Tributaria y Recaudacion. Base 2015",
+    caption = "Elaboracion propia en base a datos de Orlando Ferreres", color = "Variables") +
+    theme_minimal() + 
+    theme(legend.position="right") +
+  scale_color_manual(values = colors) +
+  shadow_wake(.5,alpha = 0.9, wrap = TRUE)+
+    transition_reveal(round(gastopbi,2)) +
+  geom_vline(xintercept=dfa$gastopbi[dfa$estimado == min(dfa$estimado)],linetype=1, alpha = 0.5,
+                color = "black", size=0.7)+
+  geom_vline(xintercept=dfa$gastopbi[dfa$estimado == max(dfa$estimado)],linetype=1, alpha = 0.5,
+                color = "black", size=0.7)
+
+animate(dl, nframes = 35, height = 700, width = 1000)
+
+
+
+
+
+```
+
+
+```{r}
+# 
+# +
+#   exit_disappear() +
+#   shadow_wake(wake_length = 2, size = NULL, alpha = NULL, wrap = FALSE)
+
+```
+
+
+Algoritmo del Gradiente
+=====================================
+
+
+**_Una aproximación a la teoría de Laffer para los últimos 60 años en Argentina._**
+
+Column {data-width=10%} 
+-----------------------------------------------------------
+
+### **Descripción: **
+
+_*Algoritmo del descenso del gradiente estimado en Python, se adjunta la iteracion con el minimo local y el maximo local*_
+
+Column {data-width=90%}
+-----------------------------------------------------------------------
+
+### ***Mínimo y Máximo local del Polinomio Estimado*** 
+
+
+
+![](curvafinal.gif)
